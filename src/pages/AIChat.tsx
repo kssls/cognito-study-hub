@@ -106,9 +106,9 @@ const AIChat = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col">
       {/* Header */}
-      <header className="border-b border-white/10 bg-black/20 backdrop-blur-sm">
+      <header className="border-b border-white/10 bg-black/20 backdrop-blur-sm flex-shrink-0">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -134,10 +134,10 @@ const AIChat = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8 h-[calc(100vh-120px)] flex flex-col">
+      <div className="flex-1 flex flex-col container mx-auto px-6 py-8 max-h-[calc(100vh-120px)]">
         {/* Quick Questions */}
         {messages.length <= 1 && (
-          <div className="mb-6">
+          <div className="mb-6 flex-shrink-0">
             <h2 className="text-white text-lg font-semibold mb-4">Quick Questions to Get Started:</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               {quickQuestions.map((question, index) => (
@@ -156,85 +156,88 @@ const AIChat = () => {
           </div>
         )}
 
-        {/* Chat Messages */}
-        <Card className="flex-1 bg-white/10 border-white/20 backdrop-blur-sm flex flex-col">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <Bot className="h-5 w-5 mr-2" />
-              Study Chat
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col">
-            <div className="flex-1 overflow-y-auto space-y-4 mb-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
+        {/* Chat Container */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <Card className="flex-1 bg-white/10 border-white/20 backdrop-blur-sm flex flex-col min-h-0">
+            <CardHeader className="flex-shrink-0">
+              <CardTitle className="text-white flex items-center">
+                <Bot className="h-5 w-5 mr-2" />
+                Study Chat
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col min-h-0 p-6">
+              {/* Messages Container */}
+              <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2">
+                {messages.map((message) => (
                   <div
-                    className={`max-w-[70%] p-4 rounded-2xl ${
-                      message.type === 'user'
-                        ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white ml-4'
-                        : 'bg-white/20 text-white mr-4'
-                    }`}
+                    key={message.id}
+                    className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div className="flex items-start space-x-3">
-                      {message.type === 'ai' && (
-                        <Bot className="h-5 w-5 text-cyan-400 mt-1 flex-shrink-0" />
-                      )}
-                      {message.type === 'user' && (
-                        <User className="h-5 w-5 text-white mt-1 flex-shrink-0" />
-                      )}
-                      <div className="flex-1">
-                        <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                          {message.content}
-                        </div>
-                        <div className="text-xs opacity-70 mt-2">
-                          {message.timestamp.toLocaleTimeString()}
+                    <div
+                      className={`max-w-[80%] p-4 rounded-2xl ${
+                        message.type === 'user'
+                          ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white'
+                          : 'bg-white/20 text-white'
+                      }`}
+                    >
+                      <div className="flex items-start space-x-3">
+                        {message.type === 'ai' && (
+                          <Bot className="h-5 w-5 text-cyan-400 mt-1 flex-shrink-0" />
+                        )}
+                        {message.type === 'user' && (
+                          <User className="h-5 w-5 text-white mt-1 flex-shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed break-words">
+                            {message.content}
+                          </div>
+                          <div className="text-xs opacity-70 mt-2">
+                            {message.timestamp.toLocaleTimeString()}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-              
-              {isTyping && (
-                <div className="flex justify-start">
-                  <div className="max-w-[70%] p-4 rounded-2xl bg-white/20 text-white mr-4">
-                    <div className="flex items-center space-x-3">
-                      <Bot className="h-5 w-5 text-cyan-400" />
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
-                        <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                        <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                ))}
+                
+                {isTyping && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[80%] p-4 rounded-2xl bg-white/20 text-white">
+                      <div className="flex items-center space-x-3">
+                        <Bot className="h-5 w-5 text-cyan-400" />
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+                          <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                          <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
-              
-              <div ref={messagesEndRef} />
-            </div>
+                )}
+                
+                <div ref={messagesEndRef} />
+              </div>
 
-            {/* Input Area */}
-            <div className="flex space-x-3">
-              <Input
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask me anything about your studies..."
-                className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:bg-white/20"
-              />
-              <Button
-                onClick={() => sendMessage()}
-                disabled={!inputMessage.trim() || isTyping}
-                className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              {/* Input Area */}
+              <div className="flex space-x-3 flex-shrink-0">
+                <Input
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ask me anything about your studies..."
+                  className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:bg-white/20"
+                />
+                <Button
+                  onClick={() => sendMessage()}
+                  disabled={!inputMessage.trim() || isTyping}
+                  className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
