@@ -11,6 +11,7 @@ const FocusMonitor = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [cameraPermission, setCameraPermission] = useState<'pending' | 'granted' | 'denied'>('pending');
@@ -61,30 +62,57 @@ const FocusMonitor = () => {
     return () => clearInterval(interval);
   }, [isMonitoring, focusScore]);
 
+  useEffect(() => {
+    // Auto-request camera permission when component mounts
+    requestCameraPermission();
+    
+    // Cleanup function to stop camera when component unmounts
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
   const requestCameraPermission = async () => {
     try {
+      console.log('Requesting camera permission...');
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
-          width: 640, 
-          height: 480,
+          width: { ideal: 640 },
+          height: { ideal: 480 },
           facingMode: 'user'
-        } 
+        },
+        audio: false
       });
+      
+      console.log('Camera permission granted, setting up video stream...');
+      streamRef.current = stream;
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        
+        // Ensure video plays
+        videoRef.current.onloadedmetadata = () => {
+          if (videoRef.current) {
+            videoRef.current.play().catch(error => {
+              console.error('Error playing video:', error);
+            });
+          }
+        };
       }
       
       setCameraPermission('granted');
       toast({
-        title: "Camera Access Granted",
-        description: "Focus monitoring is now ready to start!",
+        title: "Camera Access Granted ✅",
+        description: "You should now see yourself in the camera feed!",
       });
     } catch (error) {
+      console.error('Camera permission denied:', error);
       setCameraPermission('denied');
       toast({
         title: "Camera Access Denied",
-        description: "Please allow camera access to use focus monitoring.",
+        description: "Please allow camera access and refresh the page to use focus monitoring.",
         variant: "destructive"
       });
     }
@@ -105,13 +133,6 @@ const FocusMonitor = () => {
 
   const stopMonitoring = () => {
     setIsMonitoring(false);
-    
-    // Stop camera stream
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-    }
-    
     toast({
       title: "Focus Monitoring Stopped",
       description: `Session completed! Focus score: ${focusScore}%`,
@@ -171,9 +192,15 @@ const FocusMonitor = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-white flex items-center">
                     <Camera className="h-5 w-5 mr-2" />
-                    Live Feed
+                    Live Camera Feed
                   </CardTitle>
                   <div className="flex items-center space-x-2">
+                    {cameraPermission === 'granted' && (
+                      <div className="flex items-center space-x-2 text-green-400">
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                        <span className="text-sm">Camera Active</span>
+                      </div>
+                    )}
                     {isLookingAway && (
                       <div className="flex items-center space-x-2 text-orange-400">
                         <AlertTriangle className="h-4 w-4" />
@@ -181,8 +208,8 @@ const FocusMonitor = () => {
                       </div>
                     )}
                     {isMonitoring && (
-                      <div className="flex items-center space-x-2 text-green-400">
-                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                      <div className="flex items-center space-x-2 text-cyan-400">
+                        <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
                         <span className="text-sm">Monitoring</span>
                       </div>
                     )}
@@ -190,7 +217,7 @@ const FocusMonitor = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="relative aspect-video bg-black/50 rounded-lg overflow-hidden">
+                <div className="relative aspect-video bg-black/50 rounded-lg overflow-hidden border-2 border-white/20">
                   {cameraPermission === 'granted' ? (
                     <>
                       <video
@@ -198,13 +225,14 @@ const FocusMonitor = () => {
                         autoPlay
                         playsInline
                         muted
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover transform scale-x-[-1]"
+                        style={{ filter: 'none' }}
                       />
                       {isMonitoring && (
                         <div className="absolute inset-0 pointer-events-none">
-                          {/* Face detection overlay would go here */}
-                          <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1 rounded text-sm">
-                            Face Detected ✓
+                          <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1 rounded text-sm flex items-center">
+                            <CheckCircle className="h-4 w-4 mr-2 text-green-400" />
+                            Face Detected
                           </div>
                           {isLookingAway && (
                             <div className="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
@@ -216,20 +244,31 @@ const FocusMonitor = () => {
                         </div>
                       )}
                     </>
+                  ) : cameraPermission === 'denied' ? (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div className="text-center text-white">
+                        <AlertTriangle className="h-16 w-16 mx-auto mb-4 text-red-400" />
+                        <p className="text-lg mb-2 text-red-400">Camera Access Denied</p>
+                        <p className="text-white/70 text-sm mb-4">
+                          Please refresh the page and allow camera access to continue
+                        </p>
+                        <Button
+                          onClick={() => window.location.reload()}
+                          className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
+                        >
+                          Refresh Page
+                        </Button>
+                      </div>
+                    </div>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <div className="text-center text-white">
-                        <Camera className="h-16 w-16 mx-auto mb-4 text-white/50" />
-                        <p className="text-lg mb-2">Camera Access Required</p>
+                        <Camera className="h-16 w-16 mx-auto mb-4 text-white/50 animate-pulse" />
+                        <p className="text-lg mb-2">Setting up camera...</p>
                         <p className="text-white/70 text-sm mb-4">
-                          Allow camera access to start focus monitoring
+                          Please allow camera access in your browser
                         </p>
-                        <Button
-                          onClick={requestCameraPermission}
-                          className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
-                        >
-                          Enable Camera
-                        </Button>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
                       </div>
                     </div>
                   )}
@@ -240,7 +279,7 @@ const FocusMonitor = () => {
                     <Button
                       onClick={startMonitoring}
                       disabled={cameraPermission !== 'granted'}
-                      className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-8"
+                      className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-8 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       Start Monitoring
