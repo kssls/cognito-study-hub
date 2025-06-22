@@ -63,7 +63,7 @@ const Index = () => {
             <div className="bg-white/10 p-3 rounded-xl backdrop-blur-sm">
               <GraduationCap className="h-8 w-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-white">StudySync</h1>
+            <h1 className="text-2xl font-bold text-white">AIvy</h1>
           </div>
           <Button 
             variant="outline" 
