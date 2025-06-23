@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -20,10 +19,12 @@ import {
   User
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading, signOut } = useAuth();
   
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isBreak, setIsBreak] = useState(false);
@@ -31,10 +32,17 @@ const Dashboard = () => {
   const [breakTimeRemaining, setBreakTimeRemaining] = useState(5 * 60); // 5 minutes in seconds
   const [currentSubject, setCurrentSubject] = useState('Mathematics');
 
-  // Mock user data
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
+
+  // Mock user data - in real app, this would come from user profile
   const userData = {
-    name: 'Alex Johnson',
-    class: 'Class 10',
+    name: user?.user_metadata?.name || user?.email || 'Student',
+    class: user?.user_metadata?.class || 'Class 10',
     studyStreak: 7,
     totalSessions: 24
   };
@@ -44,7 +52,7 @@ const Dashboard = () => {
     id: 'room-123',
     subject: 'Mathematics',
     participants: [
-      { name: 'Alex Johnson', status: 'active' },
+      { name: userData.name, status: 'active' },
       { name: 'Sarah Chen', status: 'active' },
       { name: 'Mike Wilson', status: 'break' },
       { name: 'Emma Davis', status: 'active' },
@@ -121,13 +129,28 @@ const Dashboard = () => {
     });
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut();
     toast({
       title: "Logged Out",
       description: "See you next time! Keep up the great work.",
     });
     navigate('/');
   };
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">

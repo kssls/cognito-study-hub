@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GraduationCap, ArrowLeft, Mail, Lock, User, BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const Auth = () => {
   const location = useLocation();
@@ -28,23 +29,46 @@ const Auth = () => {
     class: selectedClass
   });
 
-  const handleLogin = (e: React.FormEvent) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     
-    // Placeholder for actual authentication
-    toast({
-      title: "Authentication Required",
-      description: "Please connect to Supabase to enable login functionality.",
-      variant: "destructive"
-    });
-    
-    // For demo purposes, navigate to dashboard
-    setTimeout(() => {
-      navigate('/dashboard');
-    }, 2000);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginData.email,
+        password: loginData.password,
+      });
+
+      if (error) {
+        toast({
+          title: "Login Failed",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (data.user) {
+        toast({
+          title: "Welcome back!",
+          description: "Successfully logged in.",
+        });
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      toast({
+        title: "Login Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (registerData.password !== registerData.confirmPassword) {
@@ -56,17 +80,46 @@ const Auth = () => {
       return;
     }
 
-    // Placeholder for actual registration
-    toast({
-      title: "Registration Required",
-      description: "Please connect to Supabase to enable registration functionality.",
-      variant: "destructive"
-    });
-    
-    // For demo purposes, navigate to dashboard
-    setTimeout(() => {
-      navigate('/dashboard');
-    }, 2000);
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: registerData.email,
+        password: registerData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: {
+            name: registerData.name,
+            class: registerData.class
+          }
+        }
+      });
+
+      if (error) {
+        toast({
+          title: "Registration Failed",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (data.user) {
+        toast({
+          title: "Registration Successful!",
+          description: "Please check your email to verify your account.",
+        });
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      toast({
+        title: "Registration Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const classOptions = [
@@ -98,7 +151,7 @@ const Auth = () => {
             <div className="bg-white/10 p-3 rounded-xl backdrop-blur-sm">
               <GraduationCap className="h-8 w-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-white">StudySync</h1>
+            <h1 className="text-2xl font-bold text-white">AIvy</h1>
           </div>
           <p className="text-white/70">Join your virtual study community</p>
         </div>
@@ -143,6 +196,7 @@ const Auth = () => {
                         onChange={(e) => setLoginData({...loginData, email: e.target.value})}
                         className="bg-white/10 border-white/20 text-white placeholder:text-white/50 pl-10"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -159,6 +213,7 @@ const Auth = () => {
                         onChange={(e) => setLoginData({...loginData, password: e.target.value})}
                         className="bg-white/10 border-white/20 text-white placeholder:text-white/50 pl-10"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -166,8 +221,9 @@ const Auth = () => {
                   <Button 
                     type="submit" 
                     className="w-full bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white font-semibold"
+                    disabled={isLoading}
                   >
-                    Sign In
+                    {isLoading ? 'Signing In...' : 'Sign In'}
                   </Button>
                 </form>
               </CardContent>
@@ -195,6 +251,7 @@ const Auth = () => {
                         onChange={(e) => setRegisterData({...registerData, name: e.target.value})}
                         className="bg-white/10 border-white/20 text-white placeholder:text-white/50 pl-10"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -211,6 +268,7 @@ const Auth = () => {
                         onChange={(e) => setRegisterData({...registerData, email: e.target.value})}
                         className="bg-white/10 border-white/20 text-white placeholder:text-white/50 pl-10"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -225,6 +283,7 @@ const Auth = () => {
                         onChange={(e) => setRegisterData({...registerData, class: e.target.value})}
                         className="w-full bg-white/10 border border-white/20 text-white rounded-md px-10 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                         required
+                        disabled={isLoading}
                       >
                         <option value="" className="bg-gray-800">Select your class</option>
                         {classOptions.map((option) => (
@@ -248,6 +307,7 @@ const Auth = () => {
                         onChange={(e) => setRegisterData({...registerData, password: e.target.value})}
                         className="bg-white/10 border-white/20 text-white placeholder:text-white/50 pl-10"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -264,6 +324,7 @@ const Auth = () => {
                         onChange={(e) => setRegisterData({...registerData, confirmPassword: e.target.value})}
                         className="bg-white/10 border-white/20 text-white placeholder:text-white/50 pl-10"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -271,8 +332,9 @@ const Auth = () => {
                   <Button 
                     type="submit" 
                     className="w-full bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white font-semibold"
+                    disabled={isLoading}
                   >
-                    Create Account
+                    {isLoading ? 'Creating Account...' : 'Create Account'}
                   </Button>
                 </form>
               </CardContent>
