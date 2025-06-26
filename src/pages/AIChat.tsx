@@ -1,11 +1,11 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send, Bot, User, Lightbulb, BookOpen, Calculator, Atom } from 'lucide-react';
+import { ArrowLeft, Send, Bot, User, Lightbulb, BookOpen, Calculator, Atom, Mic, MicOff, Volume2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { RealtimeChat } from '@/utils/RealtimeAudio';
 
 interface Message {
   id: string;
@@ -22,13 +22,16 @@ const AIChat = () => {
     {
       id: '1',
       type: 'ai',
-      content: "Hello! I'm your AI Study Assistant. I'm here to help you with any questions about your studies. Whether it's Math, Science, English, or any other subject - just ask!",
+      content: "Hello! I'm your AI Study Assistant with voice capabilities. You can type or speak to me - I'll help you with any questions about your studies!",
       timestamp: new Date(),
       subject: 'general'
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [realtimeChat, setRealtimeChat] = useState<RealtimeChat | null>(null);
+  const [isVoiceConnected, setIsVoiceConnected] = useState(false);
+  const [isAISpeaking, setIsAISpeaking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -46,6 +49,59 @@ const AIChat = () => {
     { text: "Study tips for exams", subject: "General", icon: Lightbulb }
   ];
 
+  const handleRealtimeMessage = (data: any) => {
+    console.log('Realtime message:', data);
+    
+    if (data.type === 'response.audio_transcript.delta') {
+      // Handle AI response transcript
+      setIsTyping(true);
+      setIsAISpeaking(true);
+    } else if (data.type === 'response.audio.done') {
+      setIsAISpeaking(false);
+      setIsTyping(false);
+    } else if (data.type === 'response.text.delta') {
+      // Handle text response
+      const aiMessage: Message = {
+        id: Date.now().toString(),
+        type: 'ai',
+        content: data.delta,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMessage]);
+    }
+  };
+
+  const connectVoiceChat = async () => {
+    try {
+      const chat = new RealtimeChat(
+        handleRealtimeMessage,
+        setIsVoiceConnected
+      );
+      
+      await chat.connect();
+      setRealtimeChat(chat);
+      
+      toast({
+        title: "Voice Chat Connected! 🎤",
+        description: "You can now speak to the AI assistant",
+      });
+    } catch (error) {
+      console.error('Error connecting voice chat:', error);
+      toast({
+        title: "Connection Failed",
+        description: "Failed to connect voice chat. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const disconnectVoiceChat = () => {
+    realtimeChat?.disconnect();
+    setRealtimeChat(null);
+    setIsVoiceConnected(false);
+    setIsAISpeaking(false);
+  };
+
   const sendMessage = async (messageText?: string) => {
     const messageToSend = messageText || inputMessage.trim();
     if (!messageToSend) return;
@@ -59,9 +115,24 @@ const AIChat = () => {
 
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
-    setIsTyping(true);
 
-    // Simulate AI response delay
+    // Send to realtime chat if connected
+    if (realtimeChat?.connected) {
+      try {
+        realtimeChat.sendTextMessage(messageToSend);
+      } catch (error) {
+        console.error('Error sending realtime message:', error);
+        // Fall back to regular chat
+        handleRegularChat(messageToSend);
+      }
+    } else {
+      handleRegularChat(messageToSend);
+    }
+  };
+
+  const handleRegularChat = (messageToSend: string) => {
+    setIsTyping(true);
+    
     setTimeout(() => {
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
@@ -94,7 +165,6 @@ const AIChat = () => {
       return "Here are proven study strategies for exam success:\n\n**🧠 Active Learning Techniques:**\n- Use the Pomodoro Technique (25 min focus + 5 min break)\n- Practice retrieval: Test yourself regularly\n- Teach others or explain concepts aloud\n\n**📅 Planning & Organization:**\n- Create a study schedule\n- Break large topics into smaller chunks\n- Use spaced repetition for long-term retention\n\n**🏃‍♂️ Physical & Mental Wellness:**\n- Get 7-9 hours of sleep\n- Take regular breaks\n- Stay hydrated and eat brain-healthy foods\n\nWhat subject are you preparing for?";
     }
     
-    // Default response
     return "I'd be happy to help you with that! Could you provide a bit more detail about what specifically you'd like to know? The more context you give me, the better I can assist you with your studies.";
   };
 
@@ -126,9 +196,40 @@ const AIChat = () => {
                 </div>
                 <div>
                   <h1 className="text-white font-semibold">AI Study Assistant</h1>
-                  <p className="text-white/60 text-sm">Always here to help with your questions</p>
+                  <p className="text-white/60 text-sm">Voice & text chat available</p>
                 </div>
               </div>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              {isAISpeaking && (
+                <div className="flex items-center space-x-2 text-cyan-400">
+                  <Volume2 className="h-4 w-4 animate-pulse" />
+                  <span className="text-sm">AI Speaking...</span>
+                </div>
+              )}
+              
+              <Button
+                onClick={isVoiceConnected ? disconnectVoiceChat : connectVoiceChat}
+                variant={isVoiceConnected ? "secondary" : "outline"}
+                className={`${
+                  isVoiceConnected 
+                    ? 'bg-green-500 hover:bg-green-600 text-white' 
+                    : 'border-white/20 text-white hover:bg-white/10'
+                }`}
+              >
+                {isVoiceConnected ? (
+                  <>
+                    <Mic className="h-4 w-4 mr-2" />
+                    Voice Active
+                  </>
+                ) : (
+                  <>
+                    <MicOff className="h-4 w-4 mr-2" />
+                    Enable Voice
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </div>
@@ -161,7 +262,7 @@ const AIChat = () => {
           <CardHeader className="flex-shrink-0">
             <CardTitle className="text-white flex items-center">
               <Bot className="h-5 w-5 mr-2" />
-              Study Chat
+              Study Chat {isVoiceConnected && <span className="ml-2 text-green-400">• Voice Enabled</span>}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col p-6 overflow-hidden">
@@ -199,7 +300,7 @@ const AIChat = () => {
                 </div>
               ))}
               
-              {isTyping && (
+              {(isTyping || isAISpeaking) && (
                 <div className="flex justify-start">
                   <div className="max-w-[80%] p-4 rounded-2xl bg-white/20 text-white">
                     <div className="flex items-center space-x-3">
@@ -223,12 +324,13 @@ const AIChat = () => {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Ask me anything about your studies..."
+                placeholder={isVoiceConnected ? "Type or speak your question..." : "Ask me anything about your studies..."}
                 className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:bg-white/20"
+                disabled={isAISpeaking}
               />
               <Button
                 onClick={() => sendMessage()}
-                disabled={!inputMessage.trim() || isTyping}
+                disabled={!inputMessage.trim() || isTyping || isAISpeaking}
                 className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
               >
                 <Send className="h-4 w-4" />

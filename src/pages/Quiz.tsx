@@ -1,11 +1,12 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, Trophy, Clock, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, Trophy, Clock, CheckCircle, XCircle, RefreshCw, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface QuizQuestion {
   id: string;
@@ -21,61 +22,25 @@ const Quiz = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
-  const [timeRemaining, setTimeRemaining] = useState(600); // 10 minutes
+  const [timeRemaining, setTimeRemaining] = useState(600);
   const [quizCompleted, setQuizCompleted] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [quizConfig, setQuizConfig] = useState({
+    subject: '',
+    difficulty: 'medium' as 'easy' | 'medium' | 'hard',
+    count: 5
+  });
+  const [quizStarted, setQuizStarted] = useState(false);
 
-  // Mock quiz questions
-  const quizQuestions: QuizQuestion[] = [
-    {
-      id: '1',
-      question: 'What is the value of x in the equation 2x + 5 = 15?',
-      options: ['x = 5', 'x = 10', 'x = 7.5', 'x = 2.5'],
-      correctAnswer: 0,
-      subject: 'Mathematics',
-      difficulty: 'easy',
-      explanation: 'To solve 2x + 5 = 15, subtract 5 from both sides: 2x = 10, then divide by 2: x = 5'
-    },
-    {
-      id: '2',
-      question: 'Which organelle is responsible for photosynthesis in plant cells?',
-      options: ['Mitochondria', 'Nucleus', 'Chloroplast', 'Ribosome'],
-      correctAnswer: 2,
-      subject: 'Biology',
-      difficulty: 'easy',
-      explanation: 'Chloroplasts contain chlorophyll and are the site where photosynthesis occurs in plant cells.'
-    },
-    {
-      id: '3',
-      question: 'What is the chemical formula for water?',
-      options: ['CO₂', 'H₂O', 'NaCl', 'CH₄'],
-      correctAnswer: 1,
-      subject: 'Chemistry',
-      difficulty: 'easy',
-      explanation: 'Water is composed of two hydrogen atoms and one oxygen atom, hence H₂O.'
-    },
-    {
-      id: '4',
-      question: 'Which of the following is a prime number?',
-      options: ['15', '21', '17', '25'],
-      correctAnswer: 2,
-      subject: 'Mathematics',
-      difficulty: 'medium',
-      explanation: 'A prime number has exactly two factors: 1 and itself. 17 can only be divided by 1 and 17.'
-    },
-    {
-      id: '5',
-      question: 'What is the largest planet in our solar system?',
-      options: ['Saturn', 'Jupiter', 'Neptune', 'Earth'],
-      correctAnswer: 1,
-      subject: 'Physics',
-      difficulty: 'easy',
-      explanation: 'Jupiter is the largest planet in our solar system, with a mass greater than all other planets combined.'
-    }
+  const subjects = [
+    'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 
+    'History', 'Geography', 'Computer Science', 'Economics', 'Psychology'
   ];
 
   // Timer logic
@@ -137,9 +102,162 @@ const Quiz = () => {
     setShowResult(false);
     setScore(0);
     setAnswers([]);
-    setTimeRemaining(600);
     setQuizCompleted(false);
+    setQuizStarted(false);
+    setQuizQuestions([]);
   };
+
+  const generateQuizQuestions = async () => {
+    if (!quizConfig.subject) {
+      toast({
+        title: "Select Subject",
+        description: "Please select a subject before generating quiz",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-quiz', {
+        body: {
+          subject: quizConfig.subject,
+          difficulty: quizConfig.difficulty,
+          count: quizConfig.count
+        }
+      });
+
+      if (error) throw error;
+
+      setQuizQuestions(data.questions);
+      setQuizStarted(true);
+      setTimeRemaining(quizConfig.count * 120); // 2 minutes per question
+      
+      toast({
+        title: "Quiz Generated! 🎉",
+        description: `${data.questions.length} AI-generated questions ready`,
+      });
+    } catch (error) {
+      console.error('Error generating quiz:', error);
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate quiz questions. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  if (!quizStarted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <header className="border-b border-white/10 bg-black/20 backdrop-blur-sm">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <Button
+                variant="ghost"
+                className="text-white hover:bg-white/10"
+                onClick={() => navigate('/dashboard')}
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Dashboard
+              </Button>
+              <div className="flex items-center space-x-3">
+                <Sparkles className="h-6 w-6 text-purple-400" />
+                <span className="text-white font-semibold">AI Quiz Generator</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="container mx-auto px-6 py-8">
+          <div className="max-w-2xl mx-auto">
+            <Card className="bg-white/10 border-white/20 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-white text-center text-2xl">
+                  Generate Your Custom Quiz
+                </CardTitle>
+                <p className="text-white/70 text-center">
+                  AI will create personalized quiz questions based on your preferences
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-white font-medium">Subject</label>
+                  <Select value={quizConfig.subject} onValueChange={(value) => 
+                    setQuizConfig({...quizConfig, subject: value})
+                  }>
+                    <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                      <SelectValue placeholder="Choose a subject" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subjects.map((subject) => (
+                        <SelectItem key={subject} value={subject}>
+                          {subject}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-white font-medium">Difficulty</label>
+                  <Select value={quizConfig.difficulty} onValueChange={(value: 'easy' | 'medium' | 'hard') => 
+                    setQuizConfig({...quizConfig, difficulty: value})
+                  }>
+                    <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="easy">Easy</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="hard">Hard</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-white font-medium">Number of Questions</label>
+                  <Select value={quizConfig.count.toString()} onValueChange={(value) => 
+                    setQuizConfig({...quizConfig, count: parseInt(value)})
+                  }>
+                    <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3">3 Questions</SelectItem>
+                      <SelectItem value="5">5 Questions</SelectItem>
+                      <SelectItem value="10">10 Questions</SelectItem>
+                      <SelectItem value="15">15 Questions</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button
+                  onClick={generateQuizQuestions}
+                  disabled={!quizConfig.subject || isGenerating}
+                  className="w-full bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white font-semibold py-3"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2 animate-spin" />
+                      Generating Quiz...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Generate AI Quiz
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / quizQuestions.length) * 100;
