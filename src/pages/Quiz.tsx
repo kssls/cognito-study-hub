@@ -45,15 +45,15 @@ const Quiz = () => {
 
   // Timer logic
   useEffect(() => {
-    if (timeRemaining > 0 && !quizCompleted) {
+    if (timeRemaining > 0 && !quizCompleted && quizStarted) {
       const timer = setTimeout(() => {
         setTimeRemaining(timeRemaining - 1);
       }, 1000);
       return () => clearTimeout(timer);
-    } else if (timeRemaining === 0 && !quizCompleted) {
+    } else if (timeRemaining === 0 && !quizCompleted && quizStarted) {
       completeQuiz();
     }
-  }, [timeRemaining, quizCompleted]);
+  }, [timeRemaining, quizCompleted, quizStarted]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -133,7 +133,22 @@ const Quiz = () => {
 
       if (error) {
         console.error('Supabase function error:', error);
-        throw new Error(error.message || 'Failed to generate quiz');
+        
+        // Check if it's an API key error
+        if (error.message && error.message.includes('OpenAI API key')) {
+          toast({
+            title: "API Key Required",
+            description: "Please configure your OpenAI API key in the Supabase Edge Function secrets to use this feature.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Generation Failed",
+            description: error.message || "Failed to generate quiz questions. Please try again.",
+            variant: "destructive"
+          });
+        }
+        return;
       }
 
       if (!data || !data.questions || !Array.isArray(data.questions)) {
@@ -142,7 +157,7 @@ const Quiz = () => {
 
       setQuizQuestions(data.questions);
       setQuizStarted(true);
-      setTimeRemaining(quizConfig.count * 120); // 2 minutes per question
+      setTimeRemaining(data.questions.length * 120); // 2 minutes per question
       
       toast({
         title: "Quiz Generated! 🎉",
@@ -202,7 +217,7 @@ const Quiz = () => {
                     <SelectTrigger className="bg-white/10 border-white/20 text-white hover:bg-white/20">
                       <SelectValue placeholder="Choose a subject" />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-white/20">
+                    <SelectContent className="bg-slate-800 border-white/20 z-50">
                       {subjects.map((subject) => (
                         <SelectItem key={subject} value={subject} className="text-white hover:bg-white/10 focus:bg-white/10">
                           {subject}
@@ -220,7 +235,7 @@ const Quiz = () => {
                     <SelectTrigger className="bg-white/10 border-white/20 text-white hover:bg-white/20">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-white/20">
+                    <SelectContent className="bg-slate-800 border-white/20 z-50">
                       <SelectItem value="easy" className="text-white hover:bg-white/10 focus:bg-white/10">Easy</SelectItem>
                       <SelectItem value="medium" className="text-white hover:bg-white/10 focus:bg-white/10">Medium</SelectItem>
                       <SelectItem value="hard" className="text-white hover:bg-white/10 focus:bg-white/10">Hard</SelectItem>
@@ -236,7 +251,7 @@ const Quiz = () => {
                     <SelectTrigger className="bg-white/10 border-white/20 text-white hover:bg-white/20">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-white/20">
+                    <SelectContent className="bg-slate-800 border-white/20 z-50">
                       <SelectItem value="3" className="text-white hover:bg-white/10 focus:bg-white/10">3 Questions</SelectItem>
                       <SelectItem value="5" className="text-white hover:bg-white/10 focus:bg-white/10">5 Questions</SelectItem>
                       <SelectItem value="10" className="text-white hover:bg-white/10 focus:bg-white/10">10 Questions</SelectItem>
@@ -262,6 +277,10 @@ const Quiz = () => {
                     </>
                   )}
                 </Button>
+                
+                <div className="text-center text-white/60 text-sm">
+                  Note: This feature requires an OpenAI API key to be configured
+                </div>
               </CardContent>
             </Card>
           </div>

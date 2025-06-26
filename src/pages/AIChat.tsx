@@ -49,7 +49,9 @@ const AIChat = () => {
     try {
       realtimeAudioRef.current = new RealtimeAudio({
         onMessage: (message: string) => {
-          addMessage('assistant', message);
+          if (message.trim()) {
+            addMessage('assistant', message);
+          }
         },
         onConnectionChange: (connected: boolean) => {
           setIsConnected(connected);
@@ -57,6 +59,12 @@ const AIChat = () => {
             toast({
               title: "Connected to AI Assistant",
               description: "Voice chat is now available",
+            });
+          } else {
+            toast({
+              title: "Disconnected",
+              description: "Voice chat is not available. Check your connection or API configuration.",
+              variant: "destructive"
             });
           }
         },
@@ -73,7 +81,7 @@ const AIChat = () => {
       console.error('Failed to initialize realtime audio:', error);
       toast({
         title: "Connection Failed",
-        description: "Unable to connect to voice chat. Text chat is still available.",
+        description: "Unable to connect to voice chat. Please check if OpenAI API key is configured. Text chat fallback is available.",
         variant: "destructive"
       });
     }
@@ -81,7 +89,7 @@ const AIChat = () => {
 
   const addMessage = (type: 'user' | 'assistant', content: string) => {
     const newMessage: Message = {
-      id: Date.now().toString(),
+      id: Date.now().toString() + Math.random(),
       type,
       content,
       timestamp: new Date()
@@ -97,11 +105,16 @@ const AIChat = () => {
     addMessage('user', userMessage);
 
     if (realtimeAudioRef.current && isConnected) {
-      realtimeAudioRef.current.sendMessage(userMessage);
+      try {
+        realtimeAudioRef.current.sendMessage(userMessage);
+      } catch (error) {
+        console.error('Error sending message:', error);
+        addMessage('assistant', "I'm sorry, there was an error processing your message. Please try again or check your connection.");
+      }
     } else {
-      // Fallback to text-only chat if realtime is not available
+      // Fallback to basic text response when realtime is not available
       setTimeout(() => {
-        addMessage('assistant', "I'm here to help with your studies! However, the voice feature is currently unavailable. Please try refreshing the page or check your connection.");
+        addMessage('assistant', "I'm here to help with your studies! However, the AI voice feature is currently unavailable. This might be because the OpenAI API key is not configured. Please contact the administrator to set up the API key for full functionality.");
       }, 1000);
     }
   };
@@ -111,7 +124,7 @@ const AIChat = () => {
   };
 
   const toggleRecording = () => {
-    if (realtimeAudioRef.current) {
+    if (realtimeAudioRef.current && isConnected) {
       if (isRecording) {
         realtimeAudioRef.current.stopRecording();
       } else {
@@ -120,7 +133,7 @@ const AIChat = () => {
     } else {
       toast({
         title: "Voice Not Available",
-        description: "Please use text input or try refreshing the page.",
+        description: "Voice features require API configuration. Please use text input or contact administrator.",
         variant: "destructive"
       });
     }
@@ -194,6 +207,13 @@ const AIChat = () => {
           </CardHeader>
           <CardContent>
             <div className="h-96 overflow-y-auto mb-4 space-y-4 p-4 bg-black/20 rounded-lg">
+              {messages.length === 0 && (
+                <div className="text-center text-white/60 py-8">
+                  <Bot className="h-12 w-12 mx-auto mb-4 text-purple-400" />
+                  <p>Welcome! I'm your AI study assistant.</p>
+                  <p className="text-sm mt-2">Ask me questions or select one of the quick questions above to get started.</p>
+                </div>
+              )}
               {messages.map((message) => (
                 <div
                   key={message.id}
@@ -234,10 +254,9 @@ const AIChat = () => {
                 variant="outline"
                 className={`p-3 border-white/20 hover:bg-white/20 ${
                   isRecording 
-                    ? 'bg-red-500 hover:bg-red-600 border-red-500' 
-                    : 'bg-white/10 text-white'
+                    ? 'bg-red-500 hover:bg-red-600 border-red-500 text-white' 
+                    : 'bg-white/10 text-white hover:text-white'
                 }`}
-                disabled={!isConnected}
               >
                 {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
               </Button>
@@ -250,6 +269,12 @@ const AIChat = () => {
                 <Send className="h-4 w-4" />
               </Button>
             </div>
+            
+            {!isConnected && (
+              <div className="mt-2 text-center text-yellow-400 text-xs">
+                Voice features unavailable - API configuration required
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -17,7 +17,13 @@ serve(async (req) => {
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
     if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+      console.error('OpenAI API key not found in environment variables');
+      return new Response(JSON.stringify({ 
+        error: 'OpenAI API key not configured. Please add your OpenAI API key to the Supabase Edge Function secrets.' 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log(`Generating ${count} quiz questions for ${subject} at ${difficulty} level`);
@@ -61,6 +67,8 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`OpenAI API error: ${response.status} - ${errorText}`);
       throw new Error(`OpenAI API error: ${response.status}`);
     }
 
@@ -70,7 +78,17 @@ serve(async (req) => {
     console.log('Generated content:', generatedContent);
     
     // Parse the JSON response
-    const questions = JSON.parse(generatedContent);
+    let questions;
+    try {
+      questions = JSON.parse(generatedContent);
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI response:', parseError);
+      throw new Error('Invalid response format from OpenAI');
+    }
+    
+    if (!Array.isArray(questions)) {
+      throw new Error('OpenAI response is not an array');
+    }
     
     return new Response(JSON.stringify({ questions }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

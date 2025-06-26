@@ -14,6 +14,7 @@ serve(async (req) => {
   
   const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openAIApiKey) {
+    console.error("OpenAI API key not configured");
     socket.close(1011, "OpenAI API key not configured");
     return response;
   }
