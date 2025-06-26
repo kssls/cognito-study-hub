@@ -119,6 +119,8 @@ const Quiz = () => {
 
     setIsGenerating(true);
     try {
+      console.log('Generating quiz with config:', quizConfig);
+      
       const { data, error } = await supabase.functions.invoke('generate-quiz', {
         body: {
           subject: quizConfig.subject,
@@ -127,7 +129,16 @@ const Quiz = () => {
         }
       });
 
-      if (error) throw error;
+      console.log('Quiz generation response:', { data, error });
+
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Failed to generate quiz');
+      }
+
+      if (!data || !data.questions || !Array.isArray(data.questions)) {
+        throw new Error('Invalid response format from quiz generator');
+      }
 
       setQuizQuestions(data.questions);
       setQuizStarted(true);
@@ -141,7 +152,7 @@ const Quiz = () => {
       console.error('Error generating quiz:', error);
       toast({
         title: "Generation Failed",
-        description: "Failed to generate quiz questions. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to generate quiz questions. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -157,7 +168,7 @@ const Quiz = () => {
             <div className="flex items-center justify-between">
               <Button
                 variant="ghost"
-                className="text-white hover:bg-white/10"
+                className="text-white hover:bg-white/10 border border-white/20"
                 onClick={() => navigate('/dashboard')}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -188,12 +199,12 @@ const Quiz = () => {
                   <Select value={quizConfig.subject} onValueChange={(value) => 
                     setQuizConfig({...quizConfig, subject: value})
                   }>
-                    <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                    <SelectTrigger className="bg-white/10 border-white/20 text-white hover:bg-white/20">
                       <SelectValue placeholder="Choose a subject" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-slate-800 border-white/20">
                       {subjects.map((subject) => (
-                        <SelectItem key={subject} value={subject}>
+                        <SelectItem key={subject} value={subject} className="text-white hover:bg-white/10 focus:bg-white/10">
                           {subject}
                         </SelectItem>
                       ))}
@@ -206,13 +217,13 @@ const Quiz = () => {
                   <Select value={quizConfig.difficulty} onValueChange={(value: 'easy' | 'medium' | 'hard') => 
                     setQuizConfig({...quizConfig, difficulty: value})
                   }>
-                    <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                    <SelectTrigger className="bg-white/10 border-white/20 text-white hover:bg-white/20">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="easy">Easy</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="hard">Hard</SelectItem>
+                    <SelectContent className="bg-slate-800 border-white/20">
+                      <SelectItem value="easy" className="text-white hover:bg-white/10 focus:bg-white/10">Easy</SelectItem>
+                      <SelectItem value="medium" className="text-white hover:bg-white/10 focus:bg-white/10">Medium</SelectItem>
+                      <SelectItem value="hard" className="text-white hover:bg-white/10 focus:bg-white/10">Hard</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -222,14 +233,14 @@ const Quiz = () => {
                   <Select value={quizConfig.count.toString()} onValueChange={(value) => 
                     setQuizConfig({...quizConfig, count: parseInt(value)})
                   }>
-                    <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                    <SelectTrigger className="bg-white/10 border-white/20 text-white hover:bg-white/20">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="3">3 Questions</SelectItem>
-                      <SelectItem value="5">5 Questions</SelectItem>
-                      <SelectItem value="10">10 Questions</SelectItem>
-                      <SelectItem value="15">15 Questions</SelectItem>
+                    <SelectContent className="bg-slate-800 border-white/20">
+                      <SelectItem value="3" className="text-white hover:bg-white/10 focus:bg-white/10">3 Questions</SelectItem>
+                      <SelectItem value="5" className="text-white hover:bg-white/10 focus:bg-white/10">5 Questions</SelectItem>
+                      <SelectItem value="10" className="text-white hover:bg-white/10 focus:bg-white/10">10 Questions</SelectItem>
+                      <SelectItem value="15" className="text-white hover:bg-white/10 focus:bg-white/10">15 Questions</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -237,7 +248,7 @@ const Quiz = () => {
                 <Button
                   onClick={generateQuizQuestions}
                   disabled={!quizConfig.subject || isGenerating}
-                  className="w-full bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white font-semibold py-3"
+                  className="w-full bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white font-semibold py-3 border-0 shadow-lg"
                 >
                   {isGenerating ? (
                     <>
