@@ -19,6 +19,7 @@ serve(async (req) => {
     return response;
   }
 
+  console.log("Starting realtime chat connection with OpenAI API key configured");
   let openAISocket: WebSocket | null = null;
   
   socket.onopen = () => {
@@ -34,14 +35,14 @@ serve(async (req) => {
     });
 
     openAISocket.onopen = () => {
-      console.log("Connected to OpenAI Realtime API");
+      console.log("Connected to OpenAI Realtime API successfully");
       
       // Send session configuration after connection
       const sessionConfig = {
         type: "session.update",
         session: {
           modalities: ["text", "audio"],
-          instructions: "You are a helpful AI study assistant. Help students with their academic questions and provide clear, educational explanations.",
+          instructions: "You are a helpful AI study assistant. Help students with their academic questions and provide clear, educational explanations. Be encouraging and supportive in your responses.",
           voice: "alloy",
           input_audio_format: "pcm16",
           output_audio_format: "pcm16",
@@ -59,6 +60,7 @@ serve(async (req) => {
         }
       };
       
+      console.log("Sending session configuration to OpenAI");
       openAISocket?.send(JSON.stringify(sessionConfig));
     };
 

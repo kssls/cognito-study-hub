@@ -26,7 +26,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Generating ${count} quiz questions for ${subject} at ${difficulty} level`);
+    console.log(`Generating ${count} quiz questions for ${subject} at ${difficulty} level with configured API key`);
 
     const prompt = `Generate ${count} multiple-choice quiz questions for ${subject} at ${difficulty} difficulty level. 
     
@@ -69,13 +69,13 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`OpenAI API error: ${response.status} - ${errorText}`);
-      throw new Error(`OpenAI API error: ${response.status}`);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
     const generatedContent = data.choices[0].message.content;
     
-    console.log('Generated content:', generatedContent);
+    console.log('Generated content received successfully');
     
     // Parse the JSON response
     let questions;
@@ -83,19 +83,26 @@ serve(async (req) => {
       questions = JSON.parse(generatedContent);
     } catch (parseError) {
       console.error('Failed to parse OpenAI response:', parseError);
+      console.error('Raw response:', generatedContent);
       throw new Error('Invalid response format from OpenAI');
     }
     
     if (!Array.isArray(questions)) {
+      console.error('OpenAI response is not an array:', questions);
       throw new Error('OpenAI response is not an array');
     }
+    
+    console.log(`Successfully generated ${questions.length} quiz questions`);
     
     return new Response(JSON.stringify({ questions }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Error generating quiz questions:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      details: error.stack 
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
