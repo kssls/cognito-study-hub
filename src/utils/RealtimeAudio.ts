@@ -1,4 +1,3 @@
-
 export class AudioRecorder {
   private stream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
@@ -170,6 +169,78 @@ export const playAudioData = async (audioContext: AudioContext, audioData: Uint8
   }
   await audioQueueInstance.addToQueue(audioData);
 };
+
+export class RealtimeAudio {
+  private realtimeChat: RealtimeChat | null = null;
+  private audioRecorder: AudioRecorder | null = null;
+  private isRecording = false;
+
+  constructor(
+    private options: {
+      onMessage: (message: string) => void;
+      onConnectionChange: (connected: boolean) => void;
+      onRecordingChange: (recording: boolean) => void;
+      onSpeakingChange: (speaking: boolean) => void;
+    }
+  ) {}
+
+  async connect() {
+    try {
+      this.realtimeChat = new RealtimeChat(
+        (message) => {
+          if (message.type === 'response.audio_transcript.delta') {
+            this.options.onMessage(message.delta || '');
+          } else if (message.type === 'response.audio.delta') {
+            this.options.onSpeakingChange(true);
+          } else if (message.type === 'response.audio.done') {
+            this.options.onSpeakingChange(false);
+          }
+        },
+        this.options.onConnectionChange
+      );
+
+      await this.realtimeChat.connect();
+    } catch (error) {
+      console.error('Failed to connect RealtimeAudio:', error);
+      throw error;
+    }
+  }
+
+  sendMessage(text: string) {
+    if (!this.realtimeChat?.connected) {
+      throw new Error('Not connected to realtime chat');
+    }
+    this.realtimeChat.sendTextMessage(text);
+  }
+
+  startRecording() {
+    if (!this.realtimeChat?.connected) {
+      throw new Error('Not connected to realtime chat');
+    }
+    
+    this.isRecording = true;
+    this.options.onRecordingChange(true);
+    console.log('Recording started');
+  }
+
+  stopRecording() {
+    this.isRecording = false;
+    this.options.onRecordingChange(false);
+    console.log('Recording stopped');
+  }
+
+  disconnect() {
+    this.realtimeChat?.disconnect();
+    this.audioRecorder?.stop();
+    this.options.onConnectionChange(false);
+    this.options.onRecordingChange(false);
+    this.options.onSpeakingChange(false);
+  }
+
+  get connected() {
+    return this.realtimeChat?.connected || false;
+  }
+}
 
 export class RealtimeChat {
   private ws: WebSocket | null = null;
